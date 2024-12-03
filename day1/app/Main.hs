@@ -1,6 +1,7 @@
 module Main where
 
 import Data.List
+import Data.Histogram
 
 input :: [(Int, Int)]
 input = [
@@ -1014,6 +1015,8 @@ list1 = fst lists
 list2 :: [Int]
 list2 = snd lists
 
+-- part 1
+
 l1_sorted :: [Int]
 l1_sorted = sort list1
 
@@ -1026,8 +1029,18 @@ pairing = zip l1_sorted l2_sorted
 diffs :: [Int]
 diffs = map (\p -> abs ((fst p) - (snd p))) pairing
 
-answer :: Int
-answer = sum diffs
+totalDist :: Int
+totalDist = sum diffs
+
+-- part 2
+
+occurrences :: Histogram Int
+occurrences = fromList list2
+
+similarityScore :: Int
+similarityScore = foldr (\locID score -> score + (locID * (occurrences ! locID))) 0 list1
 
 main :: IO ()
-main = print answer -- solution: 1197984
+main = do
+  print totalDist -- part 1 solution: 1197984
+  print similarityScore -- part 2 solution: 23387399
