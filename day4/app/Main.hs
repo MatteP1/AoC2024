@@ -1,6 +1,6 @@
 module Main where
 
-import Data.Map.Strict
+import Data.Map.Strict ( (!?), mapAccumWithKey, Map )
 import Data.Maybe (fromMaybe)
 
 -- Strategy:
