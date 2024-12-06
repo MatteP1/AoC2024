@@ -16,6 +16,7 @@ parseInput input =
   in
     fromList indexed_input
 
+-- part 1
 checkXMAS :: Board -> Pos -> Pos -> Pos -> Pos -> Bool
 checkXMAS board p1 p2 p3 p4 =
   let word = do
@@ -62,9 +63,34 @@ countMatchesPos board pos = length $ Prelude.filter (\check -> check board pos) 
 countMatches :: Board -> Int
 countMatches board = fst (mapAccumWithKey (\acc pos c -> (acc + countMatchesPos board pos, c)) 0 board )
   
+ -- part 2
+check_X_MAS :: Board -> Pos -> Bool
+check_X_MAS board pC =
+  let pNW = changeXY pC (-1) 1
+      pSE = changeXY pC 1 (-1)
+      pNE = changeXY pC 1 1
+      pSW = changeXY pC (-1) (-1)
+      
+      word1MAS = do
+        cC <- board !? pC
+        cNW <- board !? pNW
+        cSE <- board !? pSE
+        return ([cNW, cC, cSE] == "MAS" || [cSE, cC, cNW] == "MAS")
+      
+      word2MAS = do
+        cC <- board !? pC
+        cNE <- board !? pNE
+        cSW <- board !? pSW
+        return ([cNE, cC, cSW] == "MAS" || [cSW, cC, cNE] == "MAS")
+  in
+    fromMaybe False word1MAS && fromMaybe False word2MAS
+
+countXMatches :: Board -> Int
+countXMatches board = fst (mapAccumWithKey (\acc pos c -> (if check_X_MAS board pos then acc + 1 else acc, c)) 0 board )
 
 main :: IO ()
 main = do
   input <- readFile "input.txt"
   let board = parseInput $ lines input
-  print $ countMatches board
+  print $ countMatches board -- part 1
+  print $ countXMatches board -- part 2
