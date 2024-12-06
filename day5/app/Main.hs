@@ -1,11 +1,32 @@
 module Main where
 
 import Data.List.Index
+import Data.Maybe
+import Text.Megaparsec
+import Text.Megaparsec.Char
+import Data.Void (Void)
 
 type Page = Int
 type Update = [Int]
 type Rule = (Page, Page)
 type Rules = [Rule]
+
+type Parser = Parsec Void String
+
+parsePage :: Parser Page
+parsePage = do
+  page <- many numberChar
+  return $ read page
+
+parseRule :: Parser Rule
+parseRule = do
+  page1 <- parsePage
+  _ <- char '|'
+  page2 <- parsePage
+  return (page1, page2)
+
+parseUpdate :: Parser Update
+parseUpdate = sepBy parsePage (char ',')
 
 findViolation :: Rules -> Page -> Update -> Maybe (Int, Page)
 findViolation rules page = ifind (\_ page' -> (page', page) `elem` rules)
@@ -22,12 +43,14 @@ fixUpdateOrder rules update =
     fixUpdateOrderInner [] update
 
 
+parseFromFile :: Parsec e String a -> String -> IO (Either (ParseErrorBundle String e) a)
+parseFromFile p file = runParser p file <$> readFile file
+
 main :: IO ()
-main =
-  let rules = [(1, 3), (3, 2), (4, 1)]
-      updateValid = [4, 1, 1, 3, 2]
-      updateViolation = [3, 4, 1]
-  in
-    do
-    print $ fixUpdateOrder rules updateValid
-    print $ fixUpdateOrder rules updateViolation
+main = do
+    rulesInput <- readFile "rules.txt"
+    let rules = mapMaybe (parseMaybe parseRule) (lines rulesInput)
+    updatesInput <- readFile "updates.txt"
+    let updates = mapMaybe (parseMaybe parseUpdate) (lines updatesInput)
+    mapM_ print rules
+    mapM_ print updates
