@@ -5,6 +5,7 @@ import Data.Maybe
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Data.Void (Void)
+import Data.List (partition)
 
 type Page = Int
 type Update = [Int]
@@ -42,8 +43,8 @@ fixUpdateOrder rules update =
   in
     fixUpdateOrderInner [] update
 
-filterIncorrectUpdates :: Rules -> [Update] -> [Update]
-filterIncorrectUpdates rules = filter (\update -> update == fixUpdateOrder rules update)
+partitionUpdatesOnCorrectness :: Rules -> [Update] -> ([Update], [Update])
+partitionUpdatesOnCorrectness rules = partition (\update -> update == fixUpdateOrder rules update)
 
 middle :: [a] -> Maybe a
 middle []          = Nothing
@@ -58,6 +59,10 @@ main = do
     let rules = mapMaybe (parseMaybe parseRule) (lines rulesInput)
     updatesInput <- readFile "updates.txt"
     let updates = mapMaybe (parseMaybe parseUpdate) (lines updatesInput)
-        updatesFiltered = filterIncorrectUpdates rules updates
-        middles = mapMaybe middle updatesFiltered
-    print $ sum middles -- part 1
+        (correctUpdates, incorrectUpdates) = partitionUpdatesOnCorrectness rules updates
+  
+    -- part 1
+    print $ sum $ mapMaybe middle correctUpdates
+    
+    -- part 2
+    print $ sum $ mapMaybe (middle . fixUpdateOrder rules) incorrectUpdates
