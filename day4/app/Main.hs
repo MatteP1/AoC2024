@@ -1,17 +1,20 @@
 module Main where
 
-import Data.Map.Strict ( (!?), mapAccumWithKey, Map )
+import Data.Map.Strict ( (!?), mapAccumWithKey, Map, fromList )
 import Data.Maybe (fromMaybe)
-
--- Strategy:
--- Store input as a map with keys being pairs (x,y) and values being letters. 
--- Create 8? functions to check each of the 8 directions from a point (x,y) for XMAS
--- If a check passes: +1
--- Do this for each point containing an 'X'
+import Data.List.Index
 
 type Pos = (Int, Int)
 
 type Board = Map Pos Char
+
+parseInput :: [[Char]] -> Board
+parseInput input = 
+  let rows_indexed = indexed input
+      board = map (\(y, row) -> map (\(x, c) -> ((x, y), c)) (indexed row)) rows_indexed
+      indexed_input = concat board
+  in
+    fromList indexed_input
 
 checkXMAS :: Board -> Pos -> Pos -> Pos -> Pos -> Bool
 checkXMAS board p1 p2 p3 p4 =
@@ -61,4 +64,7 @@ countMatches board = fst (mapAccumWithKey (\acc pos c -> (acc + countMatchesPos 
   
 
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = do
+  input <- readFile "input.txt"
+  let board = parseInput $ lines input
+  print $ countMatches board
