@@ -42,9 +42,15 @@ fixUpdateOrder rules update =
   in
     fixUpdateOrderInner [] update
 
+filterIncorrectUpdates :: Rules -> [Update] -> [Update]
+filterIncorrectUpdates rules = filter (\update -> update == fixUpdateOrder rules update)
 
-parseFromFile :: Parsec e String a -> String -> IO (Either (ParseErrorBundle String e) a)
-parseFromFile p file = runParser p file <$> readFile file
+middle :: [a] -> Maybe a
+middle []          = Nothing
+middle [x]         = Just x
+middle [x, _]      = Just x
+middle l@(_:_:_:_) = middle $ tail $ init l
+
 
 main :: IO ()
 main = do
@@ -52,5 +58,6 @@ main = do
     let rules = mapMaybe (parseMaybe parseRule) (lines rulesInput)
     updatesInput <- readFile "updates.txt"
     let updates = mapMaybe (parseMaybe parseUpdate) (lines updatesInput)
-    mapM_ print rules
-    mapM_ print updates
+        updatesFiltered = filterIncorrectUpdates rules updates
+        middles = mapMaybe middle updatesFiltered
+    print $ sum middles -- part 1
