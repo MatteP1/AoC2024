@@ -1,10 +1,11 @@
 module Main where
 
 import Data.Map.Strict ( (!?), insert, Map, fromList, toAscList, toList, mapKeys )
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.List (find, nub)
 import Data.List.Index
 import Control.Monad.Trans.State
+import Debug.Trace
 
 type Pos = (Int, Int)
 
@@ -87,7 +88,7 @@ insertGuardOnBoard (gpos, dir) (Board board) =
   in
   Board $ insert gpos guardChar board
 
-takeStep :: State BoardState Pos
+takeStep :: State BoardState Guard
 takeStep = do
   _ <- updateGuardDirection
   (Board board, guard@(gpos, dir)) <- get
@@ -96,7 +97,7 @@ takeStep = do
       newGuard = (newgPos, dir)
       newBoard' = insertGuardOnBoard newGuard (Board newBoard)
   put (newBoard', newGuard)
-  return newgPos
+  return newGuard
 
 willGuardLeaveBoard :: BoardState -> Bool
 willGuardLeaveBoard (Board board, guard) =
@@ -105,7 +106,7 @@ willGuardLeaveBoard (Board board, guard) =
       maxX = maximum $ map (\((x, _), _) -> x) boardList
       maxY = maximum $ map (\((_, y), _) -> y) boardList
   in
-  not $ nextgpos <= (maxX, maxY) && (0, 0) <= nextgpos
+  not $ fst nextgpos <= maxX && snd nextgpos <= maxY && 0 <= fst nextgpos && 0 <= snd nextgpos
 
 runGame :: BoardState -> (BoardState, Path)
 runGame initialBoardState@(_, (initiagpos, _)) =
@@ -113,10 +114,20 @@ runGame initialBoardState@(_, (initiagpos, _)) =
         if willGuardLeaveBoard boardState then
           (boardState, path)
         else
-          let (newGpos, newBoardState) = runState takeStep boardState in
-          runGameInner newBoardState (path ++ [newGpos])
+          let (newGuard, newBoardState) = runState takeStep boardState in
+          runGameInner newBoardState (path ++ [fst newGuard])
   in
     runGameInner initialBoardState [initiagpos]
+
+runGameFindLoop :: BoardState -> (BoardState, [Guard], Bool)
+runGameFindLoop initialBoardState@(_, initialGuard) =
+  let runGameInner boardState guardPath
+        | willGuardLeaveBoard boardState = (boardState, guardPath, False)
+        | otherwise
+        = let (newGuard, newBoardState) = runState takeStep boardState in
+            if newGuard `elem` guardPath then (boardState, guardPath, True) else runGameInner newBoardState (guardPath ++ [newGuard])
+  in
+    runGameInner initialBoardState [initialGuard]
 
 
 isGuardChar :: Char -> Bool
@@ -137,7 +148,7 @@ findGuard (Board board) = do
   Just (pos, direction)
 
 parseInput :: [[Char]] -> (Board, Guard)
-parseInput input = 
+parseInput input =
   let rows_indexed = indexed input
       boardList = map (\(y, row) -> map (\(x, c) -> ((x, y), c)) (indexed row)) rows_indexed
       indexed_input = concat boardList
@@ -149,9 +160,22 @@ parseInput input =
 
 main :: IO ()
 main = do
-  input <- readFile "input.txt"
+  input <- readFile "test5.txt"
   let (board, guard) = parseInput $ lines input
       initialBoardState = (board, guard) :: BoardState
-      (finalBoardState, guardPath) = runGame initialBoardState
-  print $ length $ nub guardPath
-  print finalBoardState
+      (finalBoardState, guardPath, _) = runGameFindLoop initialBoardState
+
+      boardTraversed = case finalBoardState of (Board b, _) -> b
+      boardTraversedList = toList boardTraversed
+
+      boardUnwrapped = case board of Board b -> b
+
+      initialBoardStatesWithExtraObstacle = mapMaybe (\(pos, char) -> if (char == 'X') && pos /= (case guard of (gpos, _) -> gpos) then Just (Board $ insert pos '#' boardUnwrapped, guard) else Nothing) boardTraversedList
+
+      loopingBoards = filter (\(gameId, ibs) ->
+        let (_, _, looping) = runGameFindLoop $ traceShowWith (\bs -> (bs, gameId)) ibs in looping) $ indexed initialBoardStatesWithExtraObstacle
+
+  print $ length $ nub guardPath -- part 1 (takes around 4 seconds to run)
+  -- print finalBoardState
+  print $ length initialBoardStatesWithExtraObstacle
+  print $ length loopingBoards -- part 2 (takes around 3 hours to run)
