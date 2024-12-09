@@ -165,7 +165,7 @@ main = do
       initialBoardState = (board, guard) :: BoardState
       (finalBoardState, guardStates, _) = runGameFindLoop initialBoardState
 
-      boardTraversed = case finalBoardState of (Board b, _) -> b
+      boardTraversed = case finalBoardState of (Board b, (gpos, _)) -> insert gpos 'X' b
       boardTraversedList = toList boardTraversed
 
       boardUnwrapped = case board of Board b -> b
