@@ -170,12 +170,12 @@ main = do
 
       boardUnwrapped = case board of Board b -> b
 
-      initialBoardStatesWithExtraObstacle = mapMaybe (\(pos, char) -> if (char == 'X') && pos /= (case guard of (gpos, _) -> gpos) then Just (Board $ insert pos '#' boardUnwrapped, guard) else Nothing) boardTraversedList
+      initialBoardStatesWithExtraObstacle = mapMaybe (\(pos, char) -> if (char == 'X') && pos /= fst guard then Just (Board $ insert pos '#' boardUnwrapped, guard) else Nothing) boardTraversedList
 
       loopingBoards = filter (\(gameId, ibs) ->
         let (_, _, looping) = runGameFindLoop $ traceShowWith (\bs -> (bs, gameId)) ibs in looping) $ indexed initialBoardStatesWithExtraObstacle
 
-  print $ length $ nub $ map (\(gpos, _) -> gpos) guardStates -- part 1 (takes around 4 seconds to run)
+  print $ length $ nub $ map fst guardStates -- part 1 (takes around 4 seconds to run)
   -- print finalBoardState
   print $ length initialBoardStatesWithExtraObstacle
   print $ length loopingBoards -- part 2 (takes around 3 hours to run)
