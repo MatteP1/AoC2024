@@ -160,10 +160,10 @@ parseInput input =
 
 main :: IO ()
 main = do
-  input <- readFile "test5.txt"
+  input <- readFile "input.txt"
   let (board, guard) = parseInput $ lines input
       initialBoardState = (board, guard) :: BoardState
-      (finalBoardState, guardPath, _) = runGameFindLoop initialBoardState
+      (finalBoardState, guardStates, _) = runGameFindLoop initialBoardState
 
       boardTraversed = case finalBoardState of (Board b, _) -> b
       boardTraversedList = toList boardTraversed
@@ -175,7 +175,7 @@ main = do
       loopingBoards = filter (\(gameId, ibs) ->
         let (_, _, looping) = runGameFindLoop $ traceShowWith (\bs -> (bs, gameId)) ibs in looping) $ indexed initialBoardStatesWithExtraObstacle
 
-  print $ length $ nub guardPath -- part 1 (takes around 4 seconds to run)
+  print $ length $ nub $ map (\(gpos, _) -> gpos) guardStates -- part 1 (takes around 4 seconds to run)
   -- print finalBoardState
   print $ length initialBoardStatesWithExtraObstacle
   print $ length loopingBoards -- part 2 (takes around 3 hours to run)
