@@ -17,6 +17,7 @@ type Equation = (Int, Operands)
 
 type Parser = Parsec Void String
 
+-- part 1
 parseEquation :: Parser Equation
 parseEquation = do
   goal <- many numberChar
@@ -45,12 +46,25 @@ computeNonDet computations ops = fix (\l -> computeNonDetStep l ops) computation
 computeNonDetStart :: Operands -> Operators -> [Int]
 computeNonDetStart computations ops = concat $ computeNonDet [computations] ops
 
+-- part 2
+concatOp :: Int -> Int -> Int
+concatOp a b =
+  read $ show a ++ show b
+
 main :: IO ()
 main = do
   input <- readFile "input.txt"
   let inputEquations = mapMaybe (parseMaybe parseEquation) $ lines input
-      ops = [(+), (*)]
-      validEquations = filter (\eq -> (fst eq) `elem` computeNonDetStart (snd eq) ops) inputEquations
-      goalsSum = foldr (\eq acc -> (fst eq) + acc) 0 validEquations
+      -- part 1
+      ops1 = [(+), (*)] 
+      validEquations1 = filter (\eq -> (fst eq) `elem` computeNonDetStart (snd eq) ops1) inputEquations
+      goalsSum1 = foldr (\eq acc -> (fst eq) + acc) 0 validEquations1
+
+      -- part 2
+      ops2 = [(+), (*), concatOp]
+      validEquations2 = filter (\eq -> (fst eq) `elem` computeNonDetStart (snd eq) ops2) inputEquations
+      goalsSum2 = foldr (\eq acc -> (fst eq) + acc) 0 validEquations2
     in
-    print goalsSum
+    do
+      print goalsSum1
+      print goalsSum2
