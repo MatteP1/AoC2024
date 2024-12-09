@@ -51,6 +51,19 @@ computeAntinodesPos a1pos a2pos =
   in
     Just (changeXY a1pos diffX diffY, changeXY a2pos (-diffX) (-diffY))
 
+computeAntinodesPosLine :: Board -> Pos -> Pos -> [Pos] -- part 2
+computeAntinodesPosLine board a1pos a2pos =
+  let inner p1 p2 acc =
+        if p1 == p2 then [] else
+        let diffX = fst p1 - fst p2 
+            diffY = snd p1 - snd p2
+            p' = changeXY p2 (-diffX) (-diffY)
+        in
+          if isPosOutOfBounds p' board then acc else
+          inner p2 p' (p':acc)
+  in
+    inner a1pos a2pos [a2pos] ++ inner a2pos a1pos [a1pos]
+
 computeAntinodes :: Antenna -> Antenna -> Maybe (Pos, Pos)
 computeAntinodes a1@(a1pos, a1type) a2@(a2pos, a2type) =
   if a1 == a2 then Nothing else
@@ -81,6 +94,11 @@ findAntinodes (agroup, _) =
   in
     concat $ map (\(anp1, anp2) -> [anp1, anp2]) antinodePairs
 
+findAntinodesLines :: AntennaGroup -> Board -> [Pos] -- part 2
+findAntinodesLines (agroup, _) board =
+  let pairs = cartProd agroup agroup in
+  concatMap (\(p1, p2) -> computeAntinodesPosLine board p1 p2) pairs
+
 isPosOutOfBounds :: Pos -> Board -> Bool
 isPosOutOfBounds pos (Board board) = 
     let boardList = toList board
@@ -103,5 +121,9 @@ main = do
       antennaGroups = groupAntennasByType antennas
       antiNodes = concat $ map (\ag -> findAntinodes ag) antennaGroups
       antiNodesInBounds = filterOutOfBoundsPos antiNodes board
+
+      antiNodesLines = concat $ map (\ag -> findAntinodesLines ag board) antennaGroups
     in
-    print $ length $ nub antiNodesInBounds
+    do
+      print $ length $ nub antiNodesInBounds -- part 1
+      print $ length $ nub antiNodesLines -- part 2
