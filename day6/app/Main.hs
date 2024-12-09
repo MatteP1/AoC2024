@@ -6,6 +6,7 @@ import Data.List (find, nub)
 import Data.List.Index
 import Control.Monad.Trans.State
 import Debug.Trace
+import Control.Parallel.Strategies (parMap, rpar)
 
 type Pos = (Int, Int)
 
@@ -172,8 +173,10 @@ main = do
 
       initialBoardStatesWithExtraObstacle = mapMaybe (\(pos, char) -> if (char == 'X') && pos /= fst guard then Just (Board $ insert pos '#' boardUnwrapped, guard) else Nothing) boardTraversedList
 
-      loopingBoards = filter (\(gameId, ibs) ->
-        let (_, _, looping) = runGameFindLoop $ traceShowWith (\bs -> (bs, gameId)) ibs in looping) $ indexed initialBoardStatesWithExtraObstacle
+      finalBoardStates = parMap rpar (\(gameId, ibs) ->
+        let (_, _, looping) = runGameFindLoop $ traceShowWith (\_ -> gameId) ibs in looping) $ indexed initialBoardStatesWithExtraObstacle
+
+      loopingBoards = filter id finalBoardStates
 
   print $ length $ nub $ map fst guardStates -- part 1 (takes around 4 seconds to run)
   -- print finalBoardState
