@@ -1,7 +1,6 @@
 module Main where
 
 import Data.Map (Map, filter, toAscList, toDescList, insert, fromList, toList)
-import Debug.Trace
 import Data.List
 import Data.List.Index
 import Control.Monad (guard)
@@ -16,16 +15,17 @@ type MemMap = Map Loc FileId
 type DiskMap = [Int]
 
 data DiskMapIdEntry = FileIdSize Int Int | EmptySize Int
+  deriving (Eq, Show)
 
 type DiskMapId = [DiskMapIdEntry]
+
+enrichDiskMapWithId :: DiskMap -> DiskMapId
+enrichDiskMapWithId dm = map (\(index, size) -> if index `mod` 2 == 0 then FileIdSize (index `div` 2) size else EmptySize size) $ indexed dm
 
 expand :: DiskMapIdEntry -> [FileId]
 expand dme = case dme of
   FileIdSize fileId fileSize -> replicate fileSize (FileId fileId)
   EmptySize emptySize -> replicate emptySize Empty
-
-enrichDiskMapWithId :: DiskMap -> DiskMapId
-enrichDiskMapWithId dm = map (\(index, size) -> if index `mod` 2 == 0 then FileIdSize (index `div` 2) size else EmptySize size) $ indexed dm
 
 diskMapIdToMemMap :: DiskMapId -> MemMap
 diskMapIdToMemMap dmi = fromList $ indexed $ concatMap (expand) dmi
@@ -62,6 +62,28 @@ compactMem mem = case moveRightMostBlockToLeftMostEmpty mem of
   Nothing -> mem
   Just mem' -> compactMem mem'
 
+replace :: Eq a => a -> a -> [a] -> [a]
+replace old new ls = map (\e -> if old == e then new else e) ls
+
+insertIntoFirstEmpty :: DiskMapIdEntry -> DiskMapId -> DiskMapId
+insertIntoFirstEmpty (EmptySize _) dmi = dmi
+insertIntoFirstEmpty fis@(FileIdSize fid fsize) dmi =
+  -- dmiLeftRev is already considered entries listed in reverse (for performance reasons)
+  let inner _ [] = -- Should be an impossible case
+          dmi
+      inner dmiLeftRev (dmie@(FileIdSize fid' _):dmiRight) = 
+          if fid == fid' then dmi
+                         else inner (dmie:dmiLeftRev) dmiRight
+      inner dmiLeftRev (dmie@(EmptySize es):dmiRight) = 
+          if es < fsize then inner (dmie:dmiLeftRev) dmiRight
+                        else (reverse dmiLeftRev) ++ (fis:(EmptySize (es - fsize)):(replace fis (EmptySize fsize) dmiRight))
+    in
+      inner [] dmi
+
+compactDiskMapIdNoFragmentation :: DiskMapId -> DiskMapId
+compactDiskMapIdNoFragmentation dmi =
+  foldr (\dmie dmi' -> insertIntoFirstEmpty dmie dmi') dmi dmi
+
 computeCheckSum :: MemMap -> Int
 computeCheckSum mem = sum $ map
   (\(loc, fileId) -> 
@@ -77,4 +99,9 @@ main = do
       diskMapWithId = enrichDiskMapWithId diskMap
       memMap = diskMapIdToMemMap diskMapWithId
       compactedMemMap = compactMem memMap
+
+      fileCompactedDiskMap = compactDiskMapIdNoFragmentation diskMapWithId
+      fileCompactedMemMap = diskMapIdToMemMap fileCompactedDiskMap
+
   print $ computeCheckSum compactedMemMap -- part 1: takes around 30 sec
+  print $ computeCheckSum fileCompactedMemMap -- part 2: takes around 5 sec
