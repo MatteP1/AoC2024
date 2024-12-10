@@ -178,7 +178,7 @@ main = do
 
       loopingBoards = filter id finalBoardStates
 
-  print $ length $ nub $ map fst guardStates -- part 1 (takes around 4 seconds to run)
-  -- print finalBoardState
+  print $ length $ nub $ map fst guardStates -- part 1: takes around 4 seconds to run
+  print finalBoardState
   print $ length initialBoardStatesWithExtraObstacle
-  print $ length loopingBoards -- part 2 (takes around 3 hours to run)
+  print $ length loopingBoards -- part 2: takes around 3 hours to run when single-threaded. Run with 'cabal run all -- +RTS -N' to use all threads to compute the parMap (which is the slow part)
