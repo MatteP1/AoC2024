@@ -1,12 +1,13 @@
 module Main where
 
 import Data.Graph
+import Data.Tree
 import Data.Map.Strict ( Map, fromList, toAscList, mapKeys, foldrWithKey, lookup )
 import Data.List.Index
 import Data.Maybe
 import Control.Monad (guard)
 
--- Problem is modelled as reachability in a DAG. 
+-- Problem is modelled as a DAG.
 
 type Pos = (Int, Int)
 
@@ -57,6 +58,11 @@ adjacencyListFromTopographicalMap :: TopographicalMap -> [(Height, Pos, [Pos])]
 adjacencyListFromTopographicalMap (TopoMap topoMap) =
   foldrWithKey (\pos height adjList -> (height, pos, (findAdjacentNodes pos height (TopoMap topoMap))) : adjList) [] topoMap
 
+pathTreeFromVertex :: Vertex -> Graph -> Tree Vertex -- part 2
+pathTreeFromVertex vertex g = 
+  let find1Reach v = map (snd) $ filter (\(v', _) -> v' == v)(edges g) in
+    unfoldTree (\v -> (v, find1Reach v)) vertex
+
 -- From adjacency list, create graph (graphFromEdges). For each trailhead, find each reachable 9 height positions. Count and add.
 
 main :: IO ()
@@ -66,7 +72,21 @@ main = do
       topoMapAdjList = adjacencyListFromTopographicalMap topoMap
       (topoGraph, nodeFromVertex) = graphFromEdges' topoMapAdjList
       trailheadVertices = filter (\vertex -> case (nodeFromVertex vertex) of (h, _, _) -> h == 0) $ vertices topoGraph
-      trailheadScores = map (\vertex -> length $ filter (\(h, _, _) -> h == 9) $ map (nodeFromVertex) (reachable topoGraph vertex)) trailheadVertices
-    in
-    print $ sum trailheadScores
 
+      -- Part 1 is basically reachability in the DAG. For each trailhead node, find the reachable nodes, and filter for the ones with height 9. The length of the resulting list is the trailheads score.
+
+      calculateScore vertex = length $ filter (\(h, _, _) -> h == 9) $ map (nodeFromVertex) (reachable topoGraph vertex)
+
+      trailheadScores = map calculateScore trailheadVertices
+
+      -- Part 2 is solved by computing "path trees" for each trailhead node. A path tree is a tree of all possible paths one can take starting from some node. The rating of a trailhead node is then the number of leafs in its path tree with a node of height 9.
+
+      pathTrees = map (\v -> pathTreeFromVertex v topoGraph) trailheadVertices
+      
+      calculateRatingFromPathTree pathTree = length $ filter (\v -> case (nodeFromVertex v) of (h, _, _) -> h == 9) (flatten pathTree)
+
+      trailheadRatings = map calculateRatingFromPathTree pathTrees
+
+    in do
+      print $ sum trailheadScores
+      print $ sum trailheadRatings
