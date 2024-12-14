@@ -6,8 +6,7 @@ import Data.Map.Strict ( Map, fromList, toAscList, mapKeys, foldrWithKey, lookup
 import Data.List.Index
 import Data.Maybe
 import Control.Monad (guard)
-import Data.List (groupBy, sort)
-import Debug.Trace
+import Data.List (sort, findIndex)
 
 -- Problem is modelled as a DAG (just like day10).
 
@@ -78,20 +77,24 @@ computePerimeterOfRegion :: Region -> Int
 computePerimeterOfRegion (_, plotPositions) = 
   sum $ map (\pos -> length $ filter (\p -> not $ p `elem` plotPositions) $ adjacentPositions pos) plotPositions
 
+putIntoFirstMatchingGroup :: (a -> a -> Bool) -> a -> [[a]]-> [[a]]
+putIntoFirstMatchingGroup cmp a groups =
+  let groupNumber = findIndex (\group -> case group of {[] -> False; (b:_) -> cmp a b}) groups
+  in
+    case groupNumber of
+      Nothing -> [a]:groups
+      Just i -> modifyAt i (a:) groups
+
 computeSidesOfRegion :: Region -> Int
-computeSidesOfRegion (_, plotPositions) = 
+computeSidesOfRegion (_, plotPositions) =
   let fencePiecesFromPos pos = [(West, changeX pos 1),
-                           (East, changeX pos (-1)),
-                           (South, changeY pos 1),
-                           (North, changeY pos (-1))]
+                                (East, changeX pos (-1)),
+                                (South, changeY pos 1),
+                                (North, changeY pos (-1))]
       regionFencePiecesFromPos pos = filter (\(_, p) -> not $ p `elem` plotPositions) $ fencePiecesFromPos pos
       allRegionFencePieces = concatMap (regionFencePiecesFromPos) plotPositions
       
-      -- TODO: fix groupBy
-      groupFencePieces fencePieces = groupBy (\(f1d, (f1px, f1py)) (f2d, (f2px, f2py)) -> f1d == f2d && ((f1px == f2px && (f1d == East || f1d == West)) || (f1py == f2py && (f1d == North || f1d == South)))) fencePieces
-      -- TODO: fix groupBy
-      
-      fencePieceGroups = traceShowId $ groupFencePieces allRegionFencePieces -- TODO: removed trace
+      fencePieceGroups = foldr (putIntoFirstMatchingGroup (\(f1d, (f1px, f1py)) (f2d, (f2px, f2py)) -> f1d == f2d && ((f1px == f2px && (f1d == East || f1d == West)) || (f1py == f2py && (f1d == North || f1d == South))))) [] allRegionFencePieces
 
       fencePieceGroupsOrderable = map (\fpg -> map (\(d, (x, y)) -> case d of {North -> x; South -> x; West -> y; East -> y}) fpg) fencePieceGroups
       
@@ -104,7 +107,7 @@ computeSidesOfRegion (_, plotPositions) =
 
 main :: IO ()
 main = do
-  input <- readFile "test1.txt"
+  input <- readFile "input.txt"
   let garden = parseInput $ lines input
       gardenAdjList = adjacencyListFromGarden garden
       (gardenGraph, nodeFromVertex) = graphFromEdges' gardenAdjList
@@ -116,8 +119,6 @@ main = do
 
       -- Part 2
       discountedFenceCosts = map (\r -> computeAreaOfRegion r * computeSidesOfRegion r) regions
-
-
     in do
       print $ sum fenceCosts
       print $ sum discountedFenceCosts
