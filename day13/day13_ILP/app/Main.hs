@@ -12,7 +12,7 @@ import Data.Either
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Data.Void (Void)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes)
 
 data ClawMachine = ClawMachine { buttonA :: (Int, Int), buttonB :: (Int, Int), prize :: (Int, Int)}
   deriving (Show, Eq)
@@ -49,7 +49,7 @@ parseClawMachines = do
 -- Problem is modelled as an Integer Linear Programming problem
 
 generateILPFromClawMachine :: ClawMachine -> LP String Int
-generateILPFromClawMachine ClawMachine {buttonA = (ax, ay), buttonB = (bx, by), prize = (px, py)} = 
+generateILPFromClawMachine ClawMachine {buttonA = (ax, ay), buttonB = (bx, by), prize = (px, py)} =
   let objFun = linCombination [(3, "A"), (1, "B")] in
     execLPM $ do
     setDirection Min
@@ -64,15 +64,33 @@ generateILPFromClawMachine ClawMachine {buttonA = (ax, ay), buttonB = (bx, by), 
 (*&) :: (Ord v, Additive r) => r -> v -> LinFunc v r
 n *& v = linCombination [(n,v)]
 
+fixClawMachineConversionError :: ClawMachine -> ClawMachine
+fixClawMachineConversionError ClawMachine {buttonA = a, buttonB = b, prize = (px, py)} =
+  ClawMachine {buttonA = a, buttonB = b, prize = (10000000000000 + px, 10000000000000 + py)}
+
+calculateTokenCost :: ClawMachine -> IO (Maybe Int)
+calculateTokenCost clawMachine = do 
+    result <- (glpSolveVars mipDefaults . generateILPFromClawMachine) clawMachine
+    return (do (cost, _) <- snd result
+               return $ round cost)
+
 main :: IO ()
 main = do
   input <- readFile "input.txt"
-  let clawMachines = fromRight [] $ parse parseClawMachines "" input 
-      results = mapM (glpSolveVars mipDefaults . generateILPFromClawMachine) clawMachines
+  let clawMachines = fromRight [] $ parse parseClawMachines "" input
+      -- part 1
+      tokenCostsMaybe = mapM calculateTokenCost clawMachines
 
-      tokenCostsAndButtons = fmap (mapMaybe snd) results
-      tokenCostsAndButtonsAggregated = fmap unzip tokenCostsAndButtons
-      tokenCosts = fmap (Prelude.sum . fst) tokenCostsAndButtonsAggregated
+      tokenCosts = fmap catMaybes tokenCostsMaybe
+      tokenCostsSum = fmap Prelude.sum tokenCosts
+      
+      -- part 2 (Unfortunately, this is broken: Error detected in file npp/npp3.c at line 666)
+      fixedClawMachines = map fixClawMachineConversionError clawMachines
+      tokenCostsFixedMaybe = mapM calculateTokenCost fixedClawMachines
+
+      tokenCostsFixed = fmap catMaybes tokenCostsFixedMaybe
+      tokenCostsFixedSum = fmap Prelude.sum tokenCostsFixed
+
     in do
-      print "hi"
-      print =<< tokenCosts
+      print =<< tokenCostsSum
+      print =<< tokenCostsFixedSum
