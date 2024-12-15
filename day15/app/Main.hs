@@ -2,7 +2,7 @@ module Main where
 
 import Data.Map.Strict as Map ( Map, fromList, toList, insert, lookup )
 import Data.Maybe (mapMaybe, fromJust)
-import Data.List (find, findIndex, sortOn )
+import Data.List (find, sortOn )
 import Data.List.Index
 import Control.Monad.State
     ( modify, execState, MonadState(get), State )
@@ -22,14 +22,6 @@ data Direction =
 type Path = [Pos]
 
 newtype Board = Board (Map Pos Char)
-
-putIntoFirstMatchingGroup :: (a -> a -> Bool) -> a -> [[a]]-> [[a]]
-putIntoFirstMatchingGroup cmp a groups =
-  let groupNumber = findIndex (\group -> case group of {[] -> False; (b:_) -> cmp a b}) groups
-  in
-    case groupNumber of
-      Nothing -> [a]:groups
-      Just i -> modifyAt i (a:) groups
 
 showBoard :: Board -> String
 showBoard (Board board) =
