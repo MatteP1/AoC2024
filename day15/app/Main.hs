@@ -1,10 +1,11 @@
 module Main where
 
-import Data.Map.Strict as Map ( Map, fromList, toAscList, toList, mapKeys, insert, lookup )
+import Data.Map.Strict as Map ( Map, fromList, toList, insert, lookup )
 import Data.Maybe (mapMaybe, fromJust)
-import Data.List (find)
+import Data.List (find, findIndex, sortOn )
 import Data.List.Index
 import Control.Monad.State
+    ( modify, execState, MonadState(get), State )
 import Linear.V2
 
 type AntennaType = Char
@@ -22,12 +23,26 @@ type Path = [Pos]
 
 newtype Board = Board (Map Pos Char)
 
+putIntoFirstMatchingGroup :: (a -> a -> Bool) -> a -> [[a]]-> [[a]]
+putIntoFirstMatchingGroup cmp a groups =
+  let groupNumber = findIndex (\group -> case group of {[] -> False; (b:_) -> cmp a b}) groups
+  in
+    case groupNumber of
+      Nothing -> [a]:groups
+      Just i -> modifyAt i (a:) groups
+
 showBoard :: Board -> String
 showBoard (Board board) =
-  let boardList = toAscList $ mapKeys (\(V2 x y)  -> (y,x)) board
-      boardSize = maximum $ map (\((x, _), _) -> x) boardList
-  in
-    foldl (\acc ((_, y), c) -> acc ++ [c] ++ if y == boardSize then "\n" else "") "" boardList
+  let entries = toList board
+      sorted = sortOn (\(V2 px py, _) -> (py, px)) entries
+      buildStringNl :: [(Pos, Char)] -> String
+      buildStringNl [] = ""
+      buildStringNl xs@((V2 _ firstY, _):_) = 
+        reverse $ fst $ foldl (\(str, prevY) (V2 _ cy, cc) -> (if cy > prevY then cc:'\n':str else cc:str, cy))
+                              ("", firstY)
+                              xs
+    in
+      buildStringNl sorted
 
 instance Show Board where
   show board = showBoard board
@@ -39,6 +54,17 @@ parseBoardInput input =
       indexed_input = concat boardList
   in
     Board $ fromList indexed_input
+
+expand :: Char -> [Char]
+expand c = case c of
+  '#' -> "##"
+  'O' -> "[]"
+  '.' -> ".."
+  '@' -> "@."
+  _ -> [c]
+
+preProcessInput :: [[Char]] -> [[Char]]
+preProcessInput input = map (concatMap expand) input
 
 parseDirectionsInput :: [Char] -> [Direction]
 parseDirectionsInput input =
@@ -108,8 +134,8 @@ getBoxes (Board board)= map fst $ filter (\(_, c) -> c == 'O') $ toList board
 
 main :: IO ()
 main = do
-  boardInput <- readFile "board.txt"
-  directionsInput <- readFile "directions.txt"
+  boardInput <- readFile "test1_board.txt"
+  directionsInput <- readFile "test1_directions.txt"
   let initialBoard = parseBoardInput $ lines boardInput
       directions = parseDirectionsInput directionsInput
       robotPos = fromJust $ findRobot initialBoard
@@ -118,8 +144,12 @@ main = do
 
       boxes = getBoxes finalBoard
       boxesGpsCoords = map posToGpsCoordinate boxes
+
+      wideBoardInput = preProcessInput $ lines boardInput
+      wideBoard = parseBoardInput wideBoardInput
     in
     do
       print initialBoard
+      print wideBoard
       print finalBoard
       print $ sum boxesGpsCoords
