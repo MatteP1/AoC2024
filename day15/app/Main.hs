@@ -2,7 +2,7 @@ module Main where
 
 import Data.Map.Strict as Map ( Map, fromList, toList, insert, lookup )
 import Data.Maybe (mapMaybe, fromJust)
-import Data.List (find, sortOn )
+import Data.List (find, sortOn, nub )
 import Data.List.Index
 import Control.Monad.State
     ( modify, execState, MonadState(get), State )
@@ -77,15 +77,17 @@ changeY pos delta = pos + V2 0 delta
 changeXY :: Pos -> Int -> Int -> Pos
 changeXY pos deltaX = changeY (changeX pos deltaX)
 
-
+getNextPos :: Pos -> Direction -> Pos
+getNextPos fromPos direction = 
+  case direction of
+        North -> changeY fromPos (-1)
+        East -> changeX fromPos (1)
+        West -> changeX fromPos (-1)
+        South -> changeY fromPos (1)
 
 push :: Pos -> Direction -> Char -> State Board Pos
 push fromPos direction object =
-  let toPos = case direction of
-                North -> changeY fromPos (-1)
-                East -> changeX fromPos (1)
-                West -> changeX fromPos (-1)
-                South -> changeY fromPos (1)
+  let toPos = getNextPos fromPos direction
   in
     get >>= \(Board board) ->
       let toTypeMaybe = Map.lookup toPos board in
@@ -104,12 +106,63 @@ push fromPos direction object =
                           return toPos
               _ -> return fromPos
 
+type Pushable = Bool
+
+-- Could be somewhat nicer
+findPiecesToPush :: Pos -> Direction -> Board -> Maybe [(Pos, Char)]
+findPiecesToPush pos direction (Board board) = 
+  let inner p =
+        let pTypeMaybe = Map.lookup p board in
+          case pTypeMaybe of
+            Nothing -> Nothing
+            Just toType ->
+              case toType of
+                '.' -> Just []
+                '#' -> Nothing
+                'O' -> do toPush <- inner $ getNextPos p direction
+                          return ((p, 'O'):toPush)
+                '[' -> if direction == North || direction == South then
+                          do toPushL <- inner $ getNextPos p direction
+                             toPushR <- inner $ getNextPos (changeX p 1) direction
+                             return ((p, '['):(changeX p 1, ']'):toPushL++toPushR)
+                        else
+                            do toPush <- inner $ getNextPos p direction
+                               return ((p, '['):toPush)
+                ']' -> if direction == North || direction == South then
+                          do toPushL <- inner $ getNextPos p direction
+                             toPushR <- inner $ getNextPos (changeX p (-1)) direction
+                             return ((p, ']'):(changeX p (-1), '['):toPushL++toPushR)
+                        else
+                            do toPush <- inner $ getNextPos p direction
+                               return ((p, ']'):toPush)
+                _ -> Nothing
+    in
+      fmap nub $ inner pos
+
+forcePushPieces :: [(Pos, Char)] -> Direction -> Board -> Board
+forcePushPieces pieces direction (Board board) = Board $
+  let bRemovedPieces = foldr (\(p, _) b -> insert p '.' b) board pieces in
+  foldr (\(p, c) b -> insert (getNextPos p direction) c b) bRemovedPieces pieces
+
+push' :: Pos -> Direction -> Char -> State Board Pos
+push' fromPos direction object =
+  let toPos = getNextPos fromPos direction in
+  get >>= \(Board board) ->
+    let piecesToPushOpt = findPiecesToPush toPos direction (Board board) in
+      case piecesToPushOpt of
+        Nothing -> return fromPos
+        Just piecesToPush ->
+          modify (\b -> forcePushPieces piecesToPush direction b) >>= \_ ->
+          modify (\(Board b) -> Board $ insert toPos object b) >>= \_ ->
+          modify (\(Board b) -> Board $ insert fromPos '.' b) >>= \_ ->
+          return toPos
+
 runRobot :: Pos -> [Direction] -> State Board Path
 runRobot startPos instructions =
   let inner :: Pos -> [Direction] -> Path -> State Board Path
       inner _ [] path = return path
       inner pos (d:ds) path =
-        push pos d '@' >>= \toPos -> inner toPos ds (toPos:path)
+        push' pos d '@' >>= \toPos -> inner toPos ds (toPos:path)
   in
     inner startPos instructions [] >>= \path -> return $ reverse path
 
@@ -122,12 +175,15 @@ findRobot (Board board) = do
   return pos
 
 getBoxes :: Board -> [Pos]
-getBoxes (Board board)= map fst $ filter (\(_, c) -> c == 'O') $ toList board 
+getBoxes (Board board) = map fst $ filter (\(_, c) -> c == 'O') $ toList board 
+
+getWideBoxes :: Board -> [Pos]
+getWideBoxes (Board board) = map fst $ filter (\(_, c) -> c == '[') $ toList board 
 
 main :: IO ()
 main = do
-  boardInput <- readFile "test1_board.txt"
-  directionsInput <- readFile "test1_directions.txt"
+  boardInput <- readFile "board.txt"
+  directionsInput <- readFile "directions.txt"
   let initialBoard = parseBoardInput $ lines boardInput
       directions = parseDirectionsInput directionsInput
       robotPos = fromJust $ findRobot initialBoard
@@ -138,10 +194,21 @@ main = do
       boxesGpsCoords = map posToGpsCoordinate boxes
 
       wideBoardInput = preProcessInput $ lines boardInput
-      wideBoard = parseBoardInput wideBoardInput
+      initialWideBoard = parseBoardInput wideBoardInput
+      wideRobotPos = fromJust $ findRobot initialWideBoard
+
+      finalWideBoard = execState (runRobot wideRobotPos directions) initialWideBoard
+
+      wideBoxes = getWideBoxes finalWideBoard
+      wideBoxesGpsCoords = map posToGpsCoordinate wideBoxes
     in
     do
+      -- part 1
       print initialBoard
-      print wideBoard
       print finalBoard
       print $ sum boxesGpsCoords
+      
+      -- part 2
+      print initialWideBoard
+      print finalWideBoard
+      print $ sum wideBoxesGpsCoords
