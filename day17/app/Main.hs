@@ -150,6 +150,49 @@ main =
 
       quineA = evaluateQuine (Registers {a=0, b=0, c=0}) program
 
+      -- The Program:
+      -- B <- A mod 8
+      -- B <- B xor 2
+      -- C <- A >> B
+      -- B <- B xor C
+      -- A <- A >> 3
+      -- B <- B xor 7
+      -- OUT <- B mod 8
+      -- IF A != 0 THEN JMP 0
+
+      -- Notes about the program:
+      -- Only one 'Out' instruction: Out B
+      -- 'Out' followed by jnz 0, which is the only jump instruction
+      -- To create the program, we must do this jump 16 times.
+      -- I.e. the program ATOB: [2,4,1,2,7,5,4,5,0,3,1,7] must first put 2 in B
+      -- Running it again should put 4 in B. Then 1, 2, 7, and so on.
+
+      -- Program must perform 16 loops. Each iteration has a "state", which
+      -- is the values of the registers at the first instruction in the loop.
+      -- State 16 must be A=0, B=program[15], C=?, indicating that the program ended last iteration with program[15] being the final Output.
+
+      -- State 16 must be A=0, B=program[15], C=?
+      -- State 15 must be A=?, B=program[14], C=?
+      -- State 14 must be A=?, B=program[13], C=?
+      -- State 13 must be A=?, B=program[12], C=?
+      -- State 12 must be A=?, B=program[11], C=?
+      -- State 11 must be A=?, B=program[10], C=?
+      -- State 10 must be A=?, B=program[9],  C=?
+      -- State 9  must be A=?, B=program[8],  C=?
+      -- State 8  must be A=?, B=program[7],  C=?
+      -- State 7  must be A=?, B=program[6],  C=?
+      -- State 6  must be A=?, B=program[5],  C=?
+      -- State 5  must be A=?, B=program[4],  C=?
+      -- State 4  must be A=?, B=program[3],  C=?
+      -- State 3  must be A=?, B=program[2],  C=?
+      -- State 2  must be A=?, B=program[1],  C=?
+      -- State 1  must be A=?, B=program[0],  C=?
+      -- State 0  must be A=?, B=0,           C=0
+      
+      -- Task: Find algorithm that can take us from state i to i-1.
+
+      -- Answer < 10000000000000000
+
       output = evaluate registers program
       outputString = map (show) output
       commaSepOutput = concat $ intersperse "," outputString
