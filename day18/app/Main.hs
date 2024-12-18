@@ -2,7 +2,7 @@ module Main where
 
 import Algorithm.Search
 import Linear.V2
-import Data.List ((\\))
+import Data.List ((\\), find)
 import Data.Void (Void)
 
 import Text.Megaparsec (parse, Parsec, sepBy)
@@ -10,6 +10,7 @@ import Text.Megaparsec.Char (newline, string, space)
 import Text.Megaparsec.Char.Lexer (decimal, signed)
 import Data.Either (fromRight)
 import Data.Maybe (fromJust)
+import Debug.Trace
 
 type Parser = Parsec Void String
 
@@ -55,5 +56,11 @@ main = do
       corruptedKb = take 1024 corrupted
       is = initialState corruptedKb
       result = bfs next found is
-    in
-    print $ length $ fromJust result
+
+      -- part 2
+      -- Search from the other end to find last feasible maze
+      ints = reverse [1024..(length corrupted)]
+      lastFeasibleCorruptedLength = find (\i -> bfs next found (initialState $ take (traceShowId i) corrupted) /= Nothing) ints
+    in do
+      print $ length $ fromJust result -- part 1
+      print $ corrupted !! (fromJust lastFeasibleCorruptedLength) -- part 2
