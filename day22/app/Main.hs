@@ -4,8 +4,8 @@ import Data.Bits
 import Linear.V4
 import Data.Map as M (Map, alter, empty, elems)
 import Data.Set as S (Set, empty, insert, notMember)
-import Control.Monad.State ( State, MonadState (get), modify, execState)
-import Control.Monad (guard, when)
+import Control.Monad.State ( State, modify, execState)
+import Control.Monad (when)
 
 mix :: Int -> Int -> Int
 mix x y = x .^. y
@@ -55,7 +55,7 @@ main = do
 
       allCosts = map (\secnums -> map (`mod` 10) secnums) secretNumbers
 
-      changes = map (\costs -> zipWith (-) (tail costs) costs) allCosts
+      changes = map (\costs -> zipWith (-) (drop 1 costs) costs) allCosts
 
       allCostChanges = map (\(p1, p2) -> zip p1 p2) $ zip (map (drop 1) allCosts) changes
 
